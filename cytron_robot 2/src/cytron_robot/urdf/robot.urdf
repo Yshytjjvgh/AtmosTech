@@ -1,0 +1,182 @@
+<?xml version="1.0"?>
+<!--
+  ╔══════════════════════════════════════════════════════════════╗
+  ║  CYTRON DIFFERENTIAL DRIVE ROBOT  —  URDF Description        ║
+  ║                                                              ║
+  ║  Frame tree:                                                 ║
+  ║    map → odom → base_footprint → base_link → laser           ║
+  ║                                           → left_wheel       ║
+  ║                                           → right_wheel      ║
+  ║                                           → caster_wheel     ║
+  ║                                                              ║
+  ║  MEASUREMENTS (adjust to your physical robot):              ║
+  ║    Robot body  : 0.22 m long × 0.18 m wide × 0.08 m tall    ║
+  ║    Wheel radius: 0.033 m  (66 mm diameter)                  ║
+  ║    Wheel sep   : 0.16 m  (centre-to-centre)                 ║
+  ║    Lidar offset: 0.05 m above base_link centre              ║
+  ╚══════════════════════════════════════════════════════════════╝
+-->
+<robot name="cytron_robot">
+
+  <!-- ── Materials ─────────────────────────────────────────── -->
+  <material name="dark_grey">
+    <color rgba="0.2 0.2 0.2 1.0"/>
+  </material>
+  <material name="light_grey">
+    <color rgba="0.6 0.6 0.6 1.0"/>
+  </material>
+  <material name="black">
+    <color rgba="0.0 0.0 0.0 1.0"/>
+  </material>
+  <material name="red">
+    <color rgba="0.8 0.1 0.1 1.0"/>
+  </material>
+
+  <!-- ── base_footprint (ground projection) ───────────────── -->
+  <link name="base_footprint"/>
+
+  <joint name="base_footprint_joint" type="fixed">
+    <parent link="base_footprint"/>
+    <child  link="base_link"/>
+    <origin xyz="0 0 0.033" rpy="0 0 0"/>
+    <!-- 0.033 = wheel radius; robot sits this high off the ground -->
+  </joint>
+
+  <!-- ── base_link (robot chassis) ────────────────────────── -->
+  <link name="base_link">
+    <visual>
+      <geometry>
+        <box size="0.22 0.18 0.08"/>
+      </geometry>
+      <material name="dark_grey"/>
+    </visual>
+    <collision>
+      <geometry>
+        <box size="0.22 0.18 0.08"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="1.5"/>
+      <!-- Solid box inertia: m/12*(b²+c²) etc. -->
+      <inertia ixx="0.00486" ixy="0" ixz="0"
+               iyy="0.00726" iyz="0"
+               izz="0.01012"/>
+    </inertial>
+  </link>
+
+  <!-- ── LEFT WHEEL ────────────────────────────────────────── -->
+  <link name="left_wheel">
+    <visual>
+      <geometry>
+        <cylinder radius="0.033" length="0.027"/>
+      </geometry>
+      <material name="black"/>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder radius="0.033" length="0.027"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="0.1"/>
+      <inertia ixx="0.000027225" ixy="0" ixz="0"
+               iyy="0.000027225" iyz="0"
+               izz="0.000054450"/>
+    </inertial>
+  </link>
+
+  <joint name="left_wheel_joint" type="continuous">
+    <parent link="base_link"/>
+    <child  link="left_wheel"/>
+    <!-- 0.08 = half of 0.16 m wheel separation -->
+    <origin xyz="0 0.08 -0.033" rpy="-1.5708 0 0"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+
+  <!-- ── RIGHT WHEEL ───────────────────────────────────────── -->
+  <link name="right_wheel">
+    <visual>
+      <geometry>
+        <cylinder radius="0.033" length="0.027"/>
+      </geometry>
+      <material name="black"/>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder radius="0.033" length="0.027"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="0.1"/>
+      <inertia ixx="0.000027225" ixy="0" ixz="0"
+               iyy="0.000027225" iyz="0"
+               izz="0.000054450"/>
+    </inertial>
+  </link>
+
+  <joint name="right_wheel_joint" type="continuous">
+    <parent link="base_link"/>
+    <child  link="right_wheel"/>
+    <origin xyz="0 -0.08 -0.033" rpy="-1.5708 0 0"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+
+  <!-- ── CASTER WHEEL (passive front ball) ────────────────── -->
+  <link name="caster_wheel">
+    <visual>
+      <geometry>
+        <sphere radius="0.015"/>
+      </geometry>
+      <material name="light_grey"/>
+    </visual>
+    <collision>
+      <geometry>
+        <sphere radius="0.015"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="0.05"/>
+      <inertia ixx="0.0000015" ixy="0" ixz="0"
+               iyy="0.0000015" iyz="0"
+               izz="0.0000015"/>
+    </inertial>
+  </link>
+
+  <joint name="caster_joint" type="fixed">
+    <parent link="base_link"/>
+    <child  link="caster_wheel"/>
+    <!-- Front-centre, touching ground -->
+    <origin xyz="0.08 0 -0.033" rpy="0 0 0"/>
+  </joint>
+
+  <!-- ── LASER (RPLidar A1) ─────────────────────────────────
+       Mounted on top-centre of chassis.
+       The frame_id published by rplidar_ros is "laser".          -->
+  <link name="laser">
+    <visual>
+      <geometry>
+        <cylinder radius="0.035" length="0.04"/>
+      </geometry>
+      <material name="red"/>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder radius="0.035" length="0.04"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="0.17"/>
+      <inertia ixx="0.0001" ixy="0" ixz="0"
+               iyy="0.0001" iyz="0"
+               izz="0.0001"/>
+    </inertial>
+  </link>
+
+  <joint name="laser_joint" type="fixed">
+    <parent link="base_link"/>
+    <child  link="laser"/>
+    <!-- Centred on top of chassis; 0.04 = half chassis height + half lidar -->
+    <origin xyz="0 0 0.06" rpy="0 0 0"/>
+  </joint>
+
+</robot>

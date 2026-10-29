@@ -1,0 +1,327 @@
+# ╔══════════════════════════════════════════════════════════════════╗
+# ║  NAV2 PARAMETERS  —  Cytron differential-drive robot             ║
+# ║  Tuned for a small slow robot with RPLidar A1                    ║
+# ╚══════════════════════════════════════════════════════════════════╝
+
+# ── AMCL (Adaptive Monte Carlo Localisation) ─────────────────────────────────
+amcl:
+  ros__parameters:
+    use_sim_time: false
+
+    # Particle filter
+    min_particles:        500
+    max_particles:        2000
+    pf_err:               0.05
+    pf_z:                 0.99
+
+    # Motion model (differential drive)
+    robot_model_type: nav2_amcl::DifferentialMotionModel
+    alpha1: 0.2      # rotation noise from rotation
+    alpha2: 0.2      # rotation noise from translation
+    alpha3: 0.2      # translation noise from translation
+    alpha4: 0.2      # translation noise from rotation
+    alpha5: 0.2
+
+    # Laser model
+    laser_model_type:      likelihood_field
+    laser_max_range:       6.0
+    laser_min_range:       0.15
+    max_beams:             60
+    z_hit:                 0.5
+    z_short:               0.05
+    z_max:                 0.05
+    z_rand:                0.5
+    sigma_hit:             0.2
+    lambda_short:          0.1
+    likelihood_field_dsmax: 2.0
+    do_beamskip:           false
+
+    # Update thresholds
+    update_min_d:          0.10   # metres
+    update_min_a:          0.20   # radians
+    resample_interval:     1
+    transform_tolerance:   1.0
+    recovery_alpha_slow:   0.001
+    recovery_alpha_fast:   0.1
+
+    # Frames
+    global_frame_id:      map
+    odom_frame_id:        odom
+    base_frame_id:        base_footprint
+    scan_topic:           scan
+
+    # Initial pose covariance (spread particles out)
+    initial_pose_x:    0.0
+    initial_pose_y:    0.0
+    initial_pose_a:    0.0
+    initial_cov_xx:    0.25
+    initial_cov_yy:    0.25
+    initial_cov_aa:    0.07
+
+# ── Map Server ────────────────────────────────────────────────────────────────
+map_server:
+  ros__parameters:
+    use_sim_time: false
+    yaml_filename: ""    # passed at launch time via launch argument
+
+# ── Map Saver ────────────────────────────────────────────────────────────────
+map_saver:
+  ros__parameters:
+    use_sim_time: false
+    save_map_timeout: 5.0
+    free_thresh_default: 0.25
+    occupied_thresh_default: 0.65
+
+# ── Planner Server (global path planning) ────────────────────────────────────
+planner_server:
+  ros__parameters:
+    use_sim_time: false
+    planner_plugins: ["GridBased"]
+
+    GridBased:
+      plugin: "nav2_navfn_planner/NavfnPlanner"
+      tolerance: 0.5
+      use_astar:  true      # A* is more reliable in indoor environments
+      allow_unknown: true   # can plan through unexplored areas
+
+# ── Controller Server (local planning / trajectory following) ─────────────────
+controller_server:
+  ros__parameters:
+    use_sim_time: false
+    controller_frequency: 10.0   # Hz
+    min_x_velocity_threshold:  0.001
+    min_y_velocity_threshold:  0.5
+    min_theta_velocity_threshold: 0.001
+    failure_tolerance: 0.3
+    progress_checker_plugin: "progress_checker"
+    goal_checker_plugins: ["general_goal_checker"]
+    controller_plugins: ["FollowPath"]
+
+    progress_checker:
+      plugin: "nav2_controller::SimpleProgressChecker"
+      required_movement_radius: 0.5
+      movement_time_allowance:  10.0
+
+    general_goal_checker:
+      plugin: "nav2_controller::SimpleGoalChecker"
+      xy_goal_tolerance:    0.25   # metres — how close to goal counts as arrived
+      yaw_goal_tolerance:   0.25   # radians
+      stateful: true
+
+    # DWB — Dynamic Window Approach local planner
+    FollowPath:
+      plugin: "dwb_core::DWBLocalPlanner"
+      debug_trajectory_details: false
+      min_vel_x:   0.0
+      min_vel_y:   0.0
+      max_vel_x:   0.40    # m/s — keep conservative for RPi robot
+      max_vel_y:   0.0     # differential drive: no lateral motion
+      max_vel_theta: 1.5   # rad/s
+      min_speed_xy:  0.0
+      max_speed_xy:  0.40
+      min_speed_theta: 0.0
+      acc_lim_x:     2.5
+      acc_lim_y:     0.0
+      acc_lim_theta: 3.2
+      decel_lim_x:  -2.5
+      decel_lim_y:   0.0
+      decel_lim_theta: -3.2
+      vx_samples:    20
+      vy_samples:     5
+      vtheta_samples: 20
+      sim_time:       1.5
+      linear_granularity:  0.05
+      angular_granularity: 0.025
+      transform_tolerance: 0.2
+      xy_goal_tolerance:   0.25
+      trans_stopped_velocity: 0.25
+      short_circuit_trajectory_evaluation: true
+      stateful: true
+
+      critics:
+        ["RotateToGoal", "Oscillation", "BaseObstacle",
+         "GoalAlign",    "PathAlign",   "PathDist", "GoalDist"]
+
+      BaseObstacle.scale:  0.02
+      PathAlign.scale:     32.0
+      PathAlign.forward_point_distance: 0.1
+      GoalAlign.scale:     24.0
+      GoalAlign.forward_point_distance: 0.1
+      PathDist.scale:      32.0
+      GoalDist.scale:      24.0
+      RotateToGoal.scale:  32.0
+      RotateToGoal.slowing_factor: 5.0
+      RotateToGoal.lookahead_time: -1.0
+
+# ── Behaviour Tree Navigator ──────────────────────────────────────────────────
+bt_navigator:
+  ros__parameters:
+    use_sim_time: false
+    global_frame:  map
+    robot_base_frame: base_footprint
+    odom_topic: /odom
+    bt_loop_duration: 10
+    default_server_timeout: 20
+    wait_for_service_timeout: 1000
+    navigators: ["navigate_to_pose", "navigate_through_poses"]
+    navigate_to_pose:
+      plugin: "nav2_bt_navigator/NavigateToPoseNavigator"
+    navigate_through_poses:
+      plugin: "nav2_bt_navigator/NavigateThroughPosesNavigator"
+
+# ── Behaviour Server (recovery behaviours) ────────────────────────────────────
+behavior_server:
+  ros__parameters:
+    use_sim_time: false
+    costmap_topic: local_costmap/costmap_raw
+    footprint_topic: local_costmap/published_footprint
+    cycle_frequency: 10.0
+    behavior_plugins: ["spin", "backup", "drive_on_heading", "wait"]
+
+    spin:
+      plugin: "nav2_behaviors/Spin"
+    backup:
+      plugin: "nav2_behaviors/BackUp"
+    drive_on_heading:
+      plugin: "nav2_behaviors/DriveOnHeading"
+    wait:
+      plugin: "nav2_behaviors/Wait"
+
+    global_frame:      odom
+    robot_base_frame:  base_footprint
+    transform_tolerance: 0.1
+    simulate_ahead_time: 2.0
+    max_rotational_vel:  1.0
+    min_rotational_vel:  0.4
+    rotational_acc_lim:  3.2
+
+# ── Smoother Server ───────────────────────────────────────────────────────────
+smoother_server:
+  ros__parameters:
+    use_sim_time: false
+    smoother_plugins: ["simple_smoother"]
+    simple_smoother:
+      plugin: "nav2_smoother::SimpleSmoother"
+      tolerance: 1.0e-10
+      max_its:   1000
+      do_refinement: true
+
+# ── Velocity Smoother ─────────────────────────────────────────────────────────
+velocity_smoother:
+  ros__parameters:
+    use_sim_time: false
+    smoothing_frequency: 20.0
+    scale_velocities: false
+    feedback: "OPEN_LOOP"
+    max_velocity:     [0.40, 0.0, 1.5]
+    min_velocity:    [-0.40, 0.0, -1.5]
+    max_accel:        [2.5,  0.0, 3.2]
+    max_decel:       [-2.5,  0.0, -3.2]
+    odom_topic: /odom
+    odom_duration: 0.1
+    deadband_velocity: [0.0, 0.0, 0.0]
+    velocity_timeout: 1.0
+
+# ── Global Costmap ────────────────────────────────────────────────────────────
+global_costmap:
+  global_costmap:
+    ros__parameters:
+      use_sim_time: false
+      update_frequency:   1.0
+      publish_frequency:  1.0
+      global_frame: map
+      robot_base_frame: base_footprint
+      robot_radius: 0.15         # robot's inscribed radius in metres
+      resolution:   0.05
+      track_unknown_space: true
+      plugins: ["static_layer", "obstacle_layer", "inflation_layer"]
+
+      static_layer:
+        plugin: "nav2_costmap_2d::StaticLayer"
+        map_subscribe_transient_local: true
+
+      obstacle_layer:
+        plugin: "nav2_costmap_2d::ObstacleLayer"
+        enabled: true
+        observation_sources: scan
+        scan:
+          topic: /scan
+          max_obstacle_height: 2.0
+          clearing: true
+          marking:  true
+          data_type: LaserScan
+          raytrace_max_range:  6.0
+          raytrace_min_range:  0.0
+          obstacle_max_range:  5.5
+          obstacle_min_range:  0.0
+
+      inflation_layer:
+        plugin: "nav2_costmap_2d::InflationLayer"
+        cost_scaling_factor: 3.0
+        inflation_radius:    0.35   # keep robot away from walls
+
+# ── Local Costmap ─────────────────────────────────────────────────────────────
+local_costmap:
+  local_costmap:
+    ros__parameters:
+      use_sim_time: false
+      update_frequency:   5.0
+      publish_frequency:  2.0
+      global_frame:  odom
+      robot_base_frame: base_footprint
+      rolling_window:  true
+      width:    3      # metres — local window around robot
+      height:   3
+      resolution: 0.05
+      robot_radius: 0.15
+      plugins: ["voxel_layer", "inflation_layer"]
+
+      voxel_layer:
+        plugin: "nav2_costmap_2d::VoxelLayer"
+        enabled: true
+        publish_voxel_map: true
+        origin_z: 0.0
+        z_resolution: 0.05
+        z_voxels: 16
+        max_obstacle_height: 2.0
+        mark_threshold: 0
+        observation_sources: scan
+        scan:
+          topic: /scan
+          max_obstacle_height: 2.0
+          clearing: true
+          marking:  true
+          data_type: LaserScan
+          raytrace_max_range:  3.0
+          raytrace_min_range:  0.0
+          obstacle_max_range:  2.5
+          obstacle_min_range:  0.0
+
+      inflation_layer:
+        plugin: "nav2_costmap_2d::InflationLayer"
+        cost_scaling_factor: 3.0
+        inflation_radius:    0.35
+
+# ── Lifecycle Manager — Navigation ────────────────────────────────────────────
+lifecycle_manager:
+  ros__parameters:
+    use_sim_time: false
+    autostart: true
+    node_names:
+      - map_server
+      - amcl
+      - planner_server
+      - controller_server
+      - behavior_server
+      - smoother_server
+      - bt_navigator
+      - velocity_smoother
+
+# ── Lifecycle Manager — Localization ─────────────────────────────────────────
+lifecycle_manager_localization:
+  ros__parameters:
+    use_sim_time: false
+    autostart: true
+    node_names:
+      - map_server
+      - amcl

@@ -1,0 +1,52 @@
+# ╔══════════════════════════════════════════════════════════════════╗
+# ║  SLAM TOOLBOX PARAMETERS  —  Async Mapping Mode                  ║
+# ║  Tuned for RPLidar A1 on a small differential-drive robot        ║
+# ╚══════════════════════════════════════════════════════════════════╝
+
+slam_toolbox:
+  ros__parameters:
+
+    # ── Frame IDs (must match URDF) ──────────────────────────────────
+    odom_frame:  odom
+    map_frame:   map
+    base_frame:  base_footprint    # use base_footprint (ground level)
+    scan_topic:  /scan
+
+    # ── Mode ─────────────────────────────────────────────────────────
+    mode: mapping                  # "mapping" for Phase 1
+    use_sim_time: false
+
+    # ── Scan matching ─────────────────────────────────────────────────
+    # RPLidar A1 range: 0.15–6 m, use 90% of rated range to be safe
+    max_laser_range:        6.0    # metres
+    min_laser_range:        0.15
+    max_range:              6.0
+
+    # How far / how much the robot must move to trigger a new scan match
+    minimum_travel_distance:  0.10   # metres
+    minimum_travel_heading:   0.10   # radians (~6°)
+
+    # ── Resolution & scan buffer ──────────────────────────────────────
+    resolution:             0.05   # map cell size in metres (5 cm)
+    max_queue_size:         2
+
+    # ── Loop closure ─────────────────────────────────────────────────
+    do_loop_closing:              true
+    loop_search_space_dimension:  8.0
+    loop_match_minimum_response_coarse: 0.35
+    loop_match_minimum_response_fine:   0.45
+
+    # ── Scan matcher ─────────────────────────────────────────────────
+    use_multiecho_intensity: false
+
+    # ── Pose graph solver ─────────────────────────────────────────────
+    solver_plugin: solver_plugins::CeresSolver
+    ceres_linear_solver:    SPARSE_NORMAL_CHOLESKY
+    ceres_preconditioner:   SCHUR_JACOBI
+    ceres_trust_strategy:   LEVENBERG_MARQUARDT
+    ceres_dogleg_type:      TRADITIONAL_DOGLEG
+    ceres_loss_function:    None
+
+    # ── TF tolerance ─────────────────────────────────────────────────
+    transform_publish_period:    0.02   # 50 Hz
+    tf_buffer_duration:         30.0
